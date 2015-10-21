@@ -1,70 +1,89 @@
 #!/usr/bin/env python3
 
 import argparse
-import calendar
+import calendar as cal
 import csv
 import datetime
 import re
 import time
 
 
+def check(inp):
+    """Checking if user input is clean"""
+    while True:
+        if re.sub(r'[0-9.]+', '', inp):
+            inp = input('Incorrect input! > ')
+        else:
+            return float(inp)
+
+
 def init_vars(args):
-    # read rc file if exists
+    """Initializing vars saved during previous sessions"""
+    # read snapshot file
     try:
-        with open(args.config_file, 'r') as f:
-            config = f.read()
-        income = float(re.findall(r'income\W+([0-9]+)', config)[0])
-        gain = float(re.findall(r'gain\W+([0-9]+)', config)[0])
+        with open(args.snapshot, 'r') as f:
+            csvfile = csv.reader(f, delimiter=',')
+            lastrow = [row for row in csvfile][-1]
+            last_diff = float(lastrow[-2])
+            last_cost = float(lastrow[-1])
     except OSError:
-        print('".balancerc" not found!')
-        config = []
-        config.append(' '.join(['income:', input('Your current income? > ')]))
-        config.append(' '.join(['gain:', input('Amount to gain? > ')]))
-        with open('.balancerc', 'w') as f:
-            f.write('\n'.join(config))
-        income, gain = config
-    # read costs.csv file
-    try:
-        with open(args.costs, 'r') as f:
-            costs = csv.reader(f, delimiter=',')
-            last_cost = float([row for row in costs][-1][-1])
-    except OSError:
-        print('"costs.csv" not found!')
-        last_cost = float(input('Expenses? > '))
-        costs = [time.ctime(), last_cost]
-        with open('costs.csv', 'a') as f:
+        print('"snapshot.csv" not found! creating...')
+        with open(args.snapshot, 'w') as f:
             csvfile = csv.writer(f, delimiter=',')
-            csvfile.writerow(costs)
+            income = check(input('Your current income? > '))
+            gain = check(input('Amount to gain? > '))
+            last_cost = check(input("Today's costs? > "))
+            last_diff = income - gain
+            csvfile.writerow([time.ctime(), last_diff, last_cost])
 
     # get current time object
     today = datetime.datetime.now()
-    # get number of days in this month
-    days = int(calendar.month(today.year, today.month).split()[-1])
-    return income, gain, days, last_cost
+    # get number of days left in this month
+    days_left = int(cal.month(today.year, today.month).split()[-1]) - today.day
+    return days_left, last_cost, last_diff
 
 
-def save_snapshot():
-    pass
+def add_costs(costs, args):
+    """Adding the amount of money spent today"""
+    days_left, last_cost, last_diff = init_vars(args)
+    with open(args.snapshot, 'a') as f:
+        csvfile = csv.writer(f, delimiter=',')
+        goal = round((last_diff / days_left), 2)
+        last_diff = last_diff + (goal - (last_cost * 2))
+        csvfile.writerow([time.ctime(), last_diff, costs])
+        last_cost = costs
+    print('snapshot.csv updated.')
+    return days_left, last_cost, last_diff
+
 
 def balance(args):
-    income, gain, days, last_cost = init_vars(args)
+    if args.add:
+        days_left, last_cost, last_diff = add_costs(check(args.add), args)
+    else:
+        days_left, last_cost, last_diff = init_vars(args)
+
     # set goal
-    diff = (income - gain)
-    goal = round((diff / days), 2)
-    new_goal = round(((diff + (goal - last_cost)) / days), 2)
-    print(last_cost)
-    print(goal)
-    print(new_goal)
+    goal = round((last_diff / days_left), 2)
+    # calculating new goal based on the days and money left
+    new_goal = round(((last_diff + (goal - (last_cost * 2))) / days_left), 2)
+    print('Minimum \u20AC', new_goal, 'per day.')
+
 
 if __name__ == '__main__':
     prs = argparse.ArgumentParser(description="""
     Shows how much you can spend tomorrow based on the amount of money
     spent on previous days.""")
-    prs.add_argument('-f', '--config_file', default=".balancerc",
-                     help='Specify separate config file.',
+    prs.add_argument('-a', '--add',
+                     help='Add a daily cost (amount of money spent today).',
                      required=False)
-    prs.add_argument('-c', '--costs', default="costs.csv",
-                     help='Specify separate consts.csv file.',
+    prs.add_argument('-i', '--income',
+                     help='Modify income constant.',
                      required=False)
+    prs.add_argument('-g', '--gain',
+                     help='Modify gain constant.',
+                     required=False)
+    prs.add_argument('-s', '--snapshot', default="snapshot.csv",
+                 help='Specify separate snapshot.csv file.',
+                 required=False)
     arguments = prs.parse_args()
     balance(arguments)
