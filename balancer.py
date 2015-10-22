@@ -4,6 +4,7 @@ import argparse
 import calendar as cal
 import csv
 import datetime
+import os
 import re
 import time
 
@@ -26,13 +27,13 @@ def init_vars(args):
             lastrow = [row for row in csvfile][-1]
             last_diff = float(lastrow[-2])
             last_cost = float(lastrow[-1])
-    except OSError:
+    except Exception:
         print('"snapshot.csv" not found! creating...')
         with open(args.snapshot, 'w') as f:
             csvfile = csv.writer(f, delimiter=',')
-            income = check(input('Your current income? > '))
-            gain = check(input('Amount to gain? > '))
-            last_cost = check(input("Today's costs? > "))
+            income = check(input('Your current income?> '))
+            gain = check(input('Amount to gain?> '))
+            last_cost = check(input("Today's costs?> "))
             last_diff = income - gain
             csvfile.writerow([time.ctime(), last_diff, last_cost])
 
@@ -56,7 +57,16 @@ def add_costs(costs, args):
     return days_left, last_cost, last_diff
 
 
+def clean(args):
+    """Erasing history"""
+    if re.match(r'[yY].*', input('Erase history? (y/n)> ')):
+        open(args.snapshot, 'w').close()
+        print('{0} successfully erased.'.format(args.snapshot))
+
+
 def balance(args):
+    if args.clean:
+        clean(args)
     if args.add:
         days_left, last_cost, last_diff = add_costs(check(args.add), args)
     else:
@@ -66,13 +76,18 @@ def balance(args):
     goal = round((last_diff / days_left), 2)
     # calculating new goal based on the days and money left
     new_goal = round(((last_diff + (goal - (last_cost * 2))) / days_left), 2)
-    print('Minimum \u20AC', new_goal, 'per day.')
+    print('Maximum \u20AC', new_goal, 'per day.')
 
 
 if __name__ == '__main__':
     prs = argparse.ArgumentParser(description="""
-    Shows how much you can spend tomorrow based on the amount of money
-    spent on previous days.""")
+    This is a small util that helps you to control your daily consts.
+    Just answer two questions:
+        What is your monthly income?
+        How much do you want to save?
+    And this util will calculate the max amount of money you can spend per day
+    in order to reach your saving goal.
+    """)
     prs.add_argument('-a', '--add',
                      help='Add a daily cost (amount of money spent today).',
                      required=False)
@@ -83,7 +98,10 @@ if __name__ == '__main__':
                      help='Modify gain constant.',
                      required=False)
     prs.add_argument('-s', '--snapshot', default="snapshot.csv",
-                 help='Specify separate snapshot.csv file.',
-                 required=False)
+                     help='Specify separate snapshot.csv file.',
+                     required=False)
+    prs.add_argument('-clean', '--clean', action='store_true',
+                     help='Erases snapshot.csv history.',
+                     required=False)
     arguments = prs.parse_args()
     balance(arguments)
