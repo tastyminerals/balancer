@@ -24,10 +24,10 @@ def init_vars(args):
     try:
         with open(args.snapshot, 'r') as f:
             csvfile = csv.reader(f, delimiter=',')
-            lastrow = [row for row in csvfile][-1]
+            lastrow = [row for row in csvfile if row][-1]
             last_diff = float(lastrow[-2])
             last_cost = float(lastrow[-1])
-    except Exception:
+    except Exception as ex:
         print('"snapshot.csv" not found! creating...')
         with open(args.snapshot, 'w') as f:
             csvfile = csv.writer(f, delimiter=',')
