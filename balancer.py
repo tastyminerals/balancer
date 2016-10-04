@@ -76,7 +76,7 @@ def balance(args):
     goal = round((last_diff / days_left), 2)
     # calculating new goal based on the days and money left
     new_goal = round(((last_diff + (goal - (last_cost * 2))) / days_left), 2)
-    print('Maximum \u20AC', new_goal, 'per day.')
+    print('Maximum', new_goal, 'per day.')
 
 
 if __name__ == '__main__':
@@ -105,3 +105,4 @@ if __name__ == '__main__':
                      required=False)
     arguments = prs.parse_args()
     balance(arguments)
+
